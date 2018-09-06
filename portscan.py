@@ -72,8 +72,8 @@ def main():
     
     port_ranges = {
         "common"    : [ 20,21,22,23,25,37,53,80,443,88,109,110,115,2049,3389,8008,8080,9050,9051,32400 ],
-        "reserved"  : range(65535),
-        "full"      : range(1023)
+        "reserved"  : range(1023),
+        "full"      : range(65535)
     }
     
     usage = "usage: python %prog [options] ip address to scan"
