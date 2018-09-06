@@ -82,7 +82,7 @@ def main():
     parser.add_option("-v", "--verbose",action="store_true", dest="verbose",
                         help="prints extra information about scan")
     parser.add_option("-t", action="store", type=float, dest="timeout",
-                        help="Seconds the socket is going to wait until timeout : [delay]")
+                        help="Seconds the socket is going to wait until timeout : 0.5s")
     parser.add_option("--threads", action="store", type=int, dest="threads", default=100,
                         help="number of threads to spawn : [100]")
     
