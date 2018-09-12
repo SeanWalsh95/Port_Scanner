@@ -5,7 +5,7 @@ This script is intended to ONLY interact with targets for which You are
 expressly authorized to scan
 """
 
-import socket, threading, datetime
+import socket, threading, datetime, json
 from optparse import OptionParser
 
 __author__ = "Sean Walsh"
@@ -27,8 +27,6 @@ def TCP_connect(ip, port_range, delay, output):
             output[port_number] = 'Listening'
         except:
             output[port_number] = 'Scanned'
-        if verbose:
-            print("{} Scanned".format( str(port_number) ))
 
 
 def scan_ports(host_ip, delay, port_range, thread_count):
@@ -50,11 +48,14 @@ def scan_ports(host_ip, delay, port_range, thread_count):
     # Locking the script until all threads complete
     for i in range(thread_count):
         threads[i].join()
-
-    # Printing listening ports from small to large
-    for i in port_range:
-        if output[i] == 'Listening':
-            print(str(i) + ': ' + output[i])
+    
+    scan = {'Listening': [], 'Timeout': []}
+    for k,v in output.items():
+        if v == 'Listening':
+            scan['Listening'].append(k)
+        else:
+            scan['Timeout'].append(k)
+    return scan
 
 
 def split_range(list, n):
@@ -113,14 +114,49 @@ def main():
     eta_sec = ( len(port_range) * delay ) / thread_count
     eta = datetime.timedelta( seconds=eta_sec )
     
-    print("-----------------------------")
-    print("Scanning IP: {}".format( host_ip ))
-    print("      Range: {}".format( range_selection ))
-    print("    Timeout: {}s".format( delay ))
-    print("        ETA: {}".format( str(eta) ))
-    print("-----------------------------")
+    print("-"*31)
+    print("|{:>12}: {:15}|".format("Scanning IP", host_ip ))
+    print("|{:>12}: {:15}|".format("Range", range_selection ))
+    print("|{:>12}: {:15}|".format("Timeout", str(delay)+"s" ))
+    print("|{:>12}: {:15}|".format("ETA", str(eta) ))
+    print("-"*31)
     
-    scan_ports(host_ip, delay, port_range, thread_count)
-
+    scan_result = scan_ports(host_ip, delay, port_range, thread_count)
+    
+    dashes = "-"*59
+    print("\n Listening Ports:")
+    print(dashes + "\n {:^8} | {:^45} |\n".format("Port", "Description") + dashes)
+    for listener in scan_result['Listening']:
+        print( port_info(listener) )
+    print(dashes)
+    
+    if verbose:
+        print("\n Timeout Ports:")
+        print(dashes + "\n {:^8} | {:^45} |\n".format("Port", "Description") + dashes)
+        for listener in scan_result['Timeout']:
+            print( port_info(listener) )
+        print(dashes)
+    
+    
+def port_info( port ):
+    global port_list
+    
+    port_entry = port_list[str(port)]
+    meta = ""
+    
+    if isinstance( port_entry, list ):
+        port_desc = port_entry[0]["description"]
+        meta = "1-of-{}".format(len(port_entry))
+    else:
+        port_desc = port_entry["description"]
+    
+    if len(port_desc) > 35:
+        port_desc = port_desc[0:35] + "..."
+    
+    return " {:8} | {:38} {:6} |".format(str(port), port_desc, meta)
+    
 if __name__ == "__main__":
+    global port_list
+    with open('ports.json') as p:
+        port_list = json.load(p)["ports"]
     main()
