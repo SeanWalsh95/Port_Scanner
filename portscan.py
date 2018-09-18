@@ -114,12 +114,14 @@ def main():
     eta_sec = ( len(port_range) * delay ) / thread_count
     eta = datetime.timedelta( seconds=eta_sec )
     
-    print("-"*31)
-    print("|{:>12}: {:15}|".format("Scanning IP", host_ip ))
-    print("|{:>12}: {:15}|".format("Range", range_selection ))
-    print("|{:>12}: {:15}|".format("Timeout", str(delay)+"s" ))
-    print("|{:>12}: {:15}|".format("ETA", str(eta) ))
-    print("-"*31)
+    padding = 15 + max( len(host_ip), len(range_selection), len(str(delay))+1, len(str(eta)) )
+    
+    print("-"*padding)
+    print("{:>12}: {}".format("Scanning IP", host_ip ))
+    print("{:>12}: {}".format("Range", range_selection ))
+    print("{:>12}: {}".format("Timeout", str(delay)+"s" ))
+    print("{:>12}: {}".format("ETA", str(eta) ))
+    print("-"*padding)
     
     scan_result = scan_ports(host_ip, delay, port_range, thread_count)
     
