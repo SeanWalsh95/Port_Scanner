@@ -120,7 +120,7 @@ def main():
     print("{:>12}: {}".format("Scanning IP", host_ip ))
     print("{:>12}: {}".format("Range", range_selection ))
     print("{:>12}: {}".format("Timeout", str(delay)+"s" ))
-    print("{:>12}: {}".format("ETA", str(eta) ))
+    print("{:>12}: {}".format("ERT", str(eta) ))
     print("-"*padding)
     
     scan_result = scan_ports(host_ip, delay, port_range, thread_count)
