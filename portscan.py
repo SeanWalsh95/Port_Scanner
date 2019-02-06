@@ -13,7 +13,7 @@ __copyright__ = "Copyright (c) 2018 SeanWalsh95"
 __credits__ = ["Sean Walsh", "user:6552846@stackoverflow"]
 
 __license__ = "MIT"
-__version__ = "0.0.1"
+__version__ = "0.1.0"
 __maintainer__ = "Sean Walsh"
 
 
