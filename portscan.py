@@ -5,7 +5,7 @@ This script is intended to ONLY interact with targets for which You are
 expressly authorized to scan
 """
 
-import socket, threading, datetime, json
+import socket, threading, itertools, json, re, os, datetime as dt
 from optparse import OptionParser
 
 __author__ = "Sean Walsh"
@@ -28,7 +28,9 @@ def TCP_connect(ip, port_range, delay, output):
         except:
             output[port_number] = 'Scanned'
 
-
+# Splits range into n seperate ranges
+def split_range(list, n):
+    return [list[i::n] for i in range(n)]
 def scan_ports(host_ip, delay, port_range, thread_count):
     
     port_ranges_list = split_range( port_range, thread_count )
@@ -57,9 +59,55 @@ def scan_ports(host_ip, delay, port_range, thread_count):
             scan['Timeout'].append(k)
     return scan
 
+def out(f,string):
+    print(string)
+    f.write(string+"\n")
+def scan_ip(info_header, host_ip, delay, port_range, thread_count):
+    
+    log_file = ".\logs\{}\{}[{}-{}]@{}.txt".format(host_ip, host_ip, port_range[0], port_range[-1], dt.datetime.utcnow().timestamp())
+    
+    os.makedirs(os.path.dirname(log_file), exist_ok=True)
+    with open(log_file,"w+") as f:
+        out(f,info_header)
+        
+        scan_result = scan_ports(host_ip, delay, port_range, thread_count)
+        
+        dashes = "-"*59
+        out(f,dashes + "\n {:^8} | {:^45} |\n".format("Port", "Description") + dashes)
+        for listener in scan_result['Listening']:
+            out(f, port_info(listener) )
+        out(f,dashes)
+        
+        if verbose:
+            out(f,"\n Timeout Ports:")
+            out(f,dashes + "\n {:^8} | {:^45} |\n".format("Port", "Description") + dashes)
+            for listener in scan_result['Timeout']:
+                out(f, port_info(listener) )
+            out(f,dashes)
 
-def split_range(list, n):
-    return [list[i::n] for i in range(n)]
+def port_info( port ):
+    global port_list
+    
+    port_entry = port_list[str(port)]
+    meta = ""
+    
+    if isinstance( port_entry, list ):
+        port_desc = port_entry[0]["description"]
+        meta = "1-of-{}".format(len(port_entry))
+    else:
+        port_desc = port_entry["description"]
+    
+    if len(port_desc) > 35:
+        port_desc = port_desc[0:35] + "..."
+    
+    return " {:8} | {:38} {:6} |".format(str(port), port_desc, meta)
+def ip_range_gen(input_string):
+    octets = input_string.split('.')
+    chunks = [list(map(int, octet.split('-'))) for octet in octets]
+    ranges = [range(c[0], c[1] + 1) if len(c) == 2 else c for c in chunks]
+    
+    for address in itertools.product(*ranges):
+        yield '.'.join(map(str, address))
 
 def main():
     global verbose
@@ -67,12 +115,12 @@ def main():
     ## DEFAULTS ##
     delay = 0.5
     verbose = False
-    host_ip = "127.0.0.1"
+    ip_range = ["127.0.0.1"]
     thread_count = 100
     range_selection = "common"
     
     port_ranges = {
-        "common"    : [ 20,21,22,23,25,37,53,80,443,88,109,110,115,2049,3389,8008,8080,9050,9051,32400 ],
+        "common"    : [20,21,22,23,25,37,53,80,443,88,109,110,115,2049,3389,8008,8080,9050,9051,32400],
         "reserved"  : range(1023),
         "full"      : range(65535)
     }
@@ -106,57 +154,36 @@ def main():
     if options.range != None:
         range_selection = options.range
     if args[0] !=  None:
-        host_ip = args[0]
+        ip_arg = args[0]
     
     port_range = port_ranges[range_selection]
     
-    # ETA in seconds based on (scans_to_perform * socket_delay) / thread_count
-    eta_sec = ( len(port_range) * delay ) / thread_count
-    eta = datetime.timedelta( seconds=eta_sec )
-    
-    padding = 15 + max( len(host_ip), len(range_selection), len(str(delay))+1, len(str(eta)) )
-    
-    print("-"*padding)
-    print("{:>12}: {}".format("Scanning IP", host_ip ))
-    print("{:>12}: {}".format("Range", range_selection ))
-    print("{:>12}: {}".format("Timeout", str(delay)+"s" ))
-    print("{:>12}: {}".format("ERT", str(eta) ))
-    print("-"*padding)
-    
-    scan_result = scan_ports(host_ip, delay, port_range, thread_count)
-    
-    dashes = "-"*59
-    print("\n Listening Ports:")
-    print(dashes + "\n {:^8} | {:^45} |\n".format("Port", "Description") + dashes)
-    for listener in scan_result['Listening']:
-        print( port_info(listener) )
-    print(dashes)
-    
-    if verbose:
-        print("\n Timeout Ports:")
-        print(dashes + "\n {:^8} | {:^45} |\n".format("Port", "Description") + dashes)
-        for listener in scan_result['Timeout']:
-            print( port_info(listener) )
-        print(dashes)
-    
-    
-def port_info( port ):
-    global port_list
-    
-    port_entry = port_list[str(port)]
-    meta = ""
-    
-    if isinstance( port_entry, list ):
-        port_desc = port_entry[0]["description"]
-        meta = "1-of-{}".format(len(port_entry))
+    if re.search(r'\d{1,3}\.[\d-]*\.[\d-]*\.[\d-]*', ip_arg):
+        ip_range = list(ip_range_gen(ip_arg))
+        if len(ip_range) > 1:
+            print( "\n"+"@"*45 )
+            print( "SCANNING {} IP ADDRESSES".format(len(ip_range)).center(45) )
+            total_ert_s = (len(ip_range) * ( (len(port_range)*delay) / thread_count ))
+            print( "TOTAL ESTIMATED RUNTIME: {}".format(str(dt.timedelta(seconds=total_ert_s))).center(45) )
+            print( "@"*45+"\n" )
     else:
-        port_desc = port_entry["description"]
+        ip_range = [ip_arg]
     
-    if len(port_desc) > 35:
-        port_desc = port_desc[0:35] + "..."
-    
-    return " {:8} | {:38} {:6} |".format(str(port), port_desc, meta)
-    
+    for ip in ip_range:
+        # ERT in seconds based on (scans_to_perform * socket_delay) / thread_count
+        ert_sec = ( len(port_range) * delay ) / thread_count
+        ert = dt.timedelta( seconds=ert_sec )
+        
+        padding = 15 + max( len(ip), len(range_selection), len(str(delay))+1, len(str(ert)) )
+        
+        info =  "\n"+"-"*padding+"\n"
+        info += "{:>12}: {}\n".format("Scanning IP", ip )
+        info += "{:>12}: {}\n".format("Range", range_selection )
+        info += "{:>12}: {}\n".format("Timeout", str(delay)+"s" )
+        info += "{:>12}: {}".format("ERT", str(ert) )
+        
+        scan_ip(info, ip, delay, port_range, thread_count)
+
 if __name__ == "__main__":
     global port_list
     with open('ports.json') as p:
