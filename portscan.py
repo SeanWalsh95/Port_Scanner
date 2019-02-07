@@ -110,7 +110,7 @@ def ip_range_gen(input_string):
         yield '.'.join(map(str, address))
 
 def main():
-    global verbose
+    global verbose, port_ranges
     
     ## DEFAULTS ##
     delay = 0.5
@@ -119,11 +119,10 @@ def main():
     thread_count = 100
     range_selection = "common"
     
-    port_ranges = {
-        "common"    : [20,21,22,23,25,37,53,80,443,88,109,110,115,2049,3389,8008,8080,9050,9051,32400],
-        "reserved"  : range(1023),
-        "full"      : range(65535)
-    }
+    
+    port_ranges["reserved"] = range(1023)
+    port_ranges["full"] = range(65535)
+    
     
     usage = "usage: python %prog [options] ip address to scan"
     parser = OptionParser(usage=usage)
@@ -141,6 +140,8 @@ def main():
                         help="Full port range (0-1023) scan")
     parser.add_option("--full",     action="store_const", const="full",     dest="range",
                         help="Full port range (0-65535) scan")
+    parser.add_option("-r",         action="store",       type=str,         dest="cust_range",
+                        help="Specify name of custom range i.e. 'common_fast', 'simple'")
     
     (options, args) = parser.parse_args()
     
@@ -151,7 +152,9 @@ def main():
         delay = options.timeout
     if options.threads != None:
         thread_count = options.threads
-    if options.range != None:
+    if options.cust_range != None:
+        range_selection = options.cust_range
+    elif options.range != None:
         range_selection = options.range
     if args[0] !=  None:
         ip_arg = args[0]
@@ -185,7 +188,10 @@ def main():
         scan_ip(info, ip, delay, port_range, thread_count)
 
 if __name__ == "__main__":
-    global port_list
+    global port_list, port_ranges
+    global port_ranges
     with open('ports.json') as p:
-        port_list = json.load(p)["ports"]
+        json_dict = json.load(p)
+        port_list = json_dict["ports"]
+        port_ranges = json_dict["ranges"]
     main()
