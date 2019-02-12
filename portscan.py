@@ -16,7 +16,6 @@ __license__ = "MIT"
 __version__ = "0.1.0"
 __maintainer__ = "Sean Walsh"
 
-
 def TCP_connect(ip, port_range, delay, output):
     for port_number in port_range:
         TCPsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -134,14 +133,38 @@ def main():
     parser.add_option("--threads", action="store", type=int, dest="threads", default=100,
                         help="number of threads to spawn : [100]")
     
-    parser.add_option("--common",   action="store_const", const="common",   dest="range", default="common",
-                        help="Range of commonly used ports : [default]")
-    parser.add_option("--reserved", action="store_const", const="reserved", dest="range",
-                        help="Full port range (0-1023) scan")
-    parser.add_option("--full",     action="store_const", const="full",     dest="range",
-                        help="Full port range (0-65535) scan")
-    parser.add_option("-r",         action="store",       type=str,         dest="cust_range",
-                        help="Specify name of custom range i.e. 'common_fast', 'simple'")
+    parser.add_option(
+        "--common",
+        action="store_const",
+        const="common",
+        dest="range",
+        default="common",
+        help="Range of commonly used ports : [default]")
+    parser.add_option(
+        "--reserved",
+        action="store_const",
+        const="reserved",
+        dest="range",
+        help="Full port range (0-1023) scan")
+    parser.add_option(
+        "--full",
+        action="store_const",
+        const="full",
+        dest="range",
+        help="Full port range (0-65535) scan")
+    parser.add_option(
+        "-r",
+        action="store",
+        type='string',
+        dest="cust_range",
+        help="Specify name of custom range i.e. 'common_fast', 'simple'")
+    parser.add_option(
+        '-c',
+        action="store",
+        type='string',
+        dest='custom_ports',
+        help="Custom list of ports e.x.  -c 80,443,25")
+    
     
     (options, args) = parser.parse_args()
     
@@ -152,14 +175,17 @@ def main():
         delay = options.timeout
     if options.threads != None:
         thread_count = options.threads
-    if options.cust_range != None:
-        range_selection = options.cust_range
-    elif options.range != None:
-        range_selection = options.range
     if args[0] !=  None:
         ip_arg = args[0]
     
-    port_range = port_ranges[range_selection]
+    if options.custom_ports != None:
+        port_range = list(map(int, options.custom_ports.split(',')))
+    else:
+        if options.cust_range != None:
+            range_selection = options.cust_range
+        elif options.range != None:
+            range_selection = options.range
+        port_range = port_ranges[range_selection]
     
     if re.search(r'\d{1,3}\.[\d-]*\.[\d-]*\.[\d-]*', ip_arg):
         ip_range = list(ip_range_gen(ip_arg))
@@ -171,6 +197,8 @@ def main():
             print( "@"*45+"\n" )
     else:
         ip_range = [ip_arg]
+    
+    print(port_range)
     
     for ip in ip_range:
         # ERT in seconds based on (scans_to_perform * socket_delay) / thread_count
