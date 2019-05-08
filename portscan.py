@@ -87,14 +87,16 @@ def scan_ip(info_header, host_ip, delay, port_range, thread_count):
 def port_info( port ):
     global port_list
     
-    port_entry = port_list[str(port)]
+    port_desc = "Undefined"
     meta = ""
     
-    if isinstance( port_entry, list ):
-        port_desc = port_entry[0]["description"]
-        meta = "1-of-{}".format(len(port_entry))
-    else:
-        port_desc = port_entry["description"]
+    if str(port) in port_list:
+        port_entry = port_list[str(port)]
+        if isinstance( port_entry, list ):
+            port_desc = port_entry[0]["description"]
+            meta = "1-of-{}".format(len(port_entry))
+        else:
+            port_desc = port_entry["description"]
     
     if len(port_desc) > 35:
         port_desc = port_desc[0:35] + "..."
